@@ -12,11 +12,12 @@ class CustomerTrainEpisodeLogger(Callback):
         self.episode_start = {}
         self.observations = {}
         self.rewards = {}
+        self.time_late ={}
         self.actions = {}
         self.metrics = {}
         self.step = 0
         self.files=open(filename,"w")
-        self.files.write("total_reward,mean_reward\n")
+        self.files.write("total_reward,mean_reward,total_late\n")
 
     def on_train_begin(self, logs):
         """ Print training values at beginning of training """

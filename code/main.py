@@ -21,6 +21,8 @@ from tensorflow.keras.layers import (Activation, Concatenate, Dense, Dropout,
                                      Flatten, Input)
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.models import load_model
+from FDQO_method import DQNAgent
 import sys
 
 from fuzzy_controller import *
@@ -32,6 +34,7 @@ from fuzzy_controller import *
 import os
 
 from rl.agents.dqn import DQNAgent
+from SarsaMEC import SARSAAgent
 
 os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 def Run_Random():
@@ -114,13 +117,22 @@ def build_model(state_size, num_actions):
     model = Model(inputs=input, outputs=output)
     return model
 
+
+def get_model_DQL():
+    try:
+        model = load_model('model_DQL.h5')
+    except Exception as e:
+        print(e)
+    return model
+
 def Run_DQL():
     model=build_model(14,4)
+    # model = get_model_DQL()
     num_actions = 4
     policy = EpsGreedyQPolicy(0.1)
     env = BusEnv("DQL")
     env.seed(123)
-    memory = SequentialMemory(limit=5000, window_length=1)
+    memory = SequentialMemory(limit=25000, window_length=1)
     
     dqn = DQNAgent(model=model, nb_actions=num_actions, memory=memory, nb_steps_warmup=10,\
               target_model_update=1e-3, policy=policy,gamma=0.9,memory_interval=1)
@@ -132,7 +144,7 @@ def Run_DQL():
     callback3 = TestLogger11(files)
     dqn.compile(Adam(lr=1e-3), metrics=['mae'])
     dqn.fit(env, nb_steps= 95162, visualize=False, verbose=2,callbacks=[callbacks,callback2])
-
+    
 def Run_FDQO():
     FDQO_method = Model_Deep_Q_Learning(14,4)
     model = FDQO_method.build_model()
@@ -150,9 +162,105 @@ def Run_FDQO():
     callbacks = CustomerTrainEpisodeLogger("FDQO_5phut.csv")
     callback2 = ModelIntervalCheckpoint("weight_FDQO.h5f",interval=50000)
     callback3 = TestLogger11(files)
+    model.compile(Adam(lr=1e-3), metrics=['mae']) 
+    
+
+    # #load weight and continue training
+    # fdqo = FDQO_method.DQNAgent(model=model, nb_actions=4, memory=memory, nb_steps_warmup=10,\
+    #            target_model_update=1e-3, policy=policy,gamma=0.9,memory_interval=1)
+    # fdqo.load_weights('weight_FDQO.h5f')
+    # #model.load_weights('weight_FDQO.h5f')
+    #fdqo.compile(Adam(lr=1e-3), metrics=['mae'])
+    
+    
     model.compile(Adam(lr=1e-3), metrics=['mae'])
     model.fit(env, nb_steps= 95162, visualize=False, verbose=2,callbacks=[callbacks,callback2])
     files.close()
+    
+def Run_DbFDQO():
+    FDQO_method = Model_Deep_Q_Learning(14,4)
+    model = FDQO_method.build_model()
+    #Create enviroment FDQO
+    env = BusEnv("FDQO")
+    env.seed(123)
+    #create memory
+    memory = SequentialMemory(limit=5000, window_length=1)
+    #create policy 
+    policy = EpsGreedyQPolicy(0.0)
+    #open files
+    files = open("testDbFDQO.csv","w")
+    files.write("kq\n")
+    #create callback
+    callbacks = CustomerTrainEpisodeLogger("DbFDQO_5phut.csv")
+    callback2 = ModelIntervalCheckpoint("weight_DbFDQO.h5f",interval=50000)
+    callback3 = TestLogger11(files)
+    model.compile(Adam(lr=1e-3), metrics=['mae']) 
+    
+
+    # #load weight and continue training
+    # fdqo = FDQO_method.DQNAgent(model=model, nb_actions=4, memory=memory, nb_steps_warmup=10,\
+    #            target_model_update=1e-3, policy=policy,gamma=0.9,memory_interval=1)
+    # fdqo.load_weights('weight_FDQO.h5f')
+    # #model.load_weights('weight_FDQO.h5f')
+    #fdqo.compile(Adam(lr=1e-3), metrics=['mae'])
+    
+    
+    model.compile(Adam(lr=1e-3), metrics=['mae'])
+    model.fit(env, nb_steps= 95162, visualize=False, verbose=2,callbacks=[callbacks,callback2])
+    files.close()
+    
+def Run_DbpFDQO():
+    FDQO_method = Model_Deep_Q_Learning(14,4)
+    model = FDQO_method.build_model()
+    #Create enviroment FDQO
+    env = BusEnv("FDQO")
+    env.seed(123)
+    #create memory
+    memory = SequentialMemory(limit=5000, window_length=1)
+    #create policy 
+    policy = EpsGreedyQPolicy(0.0)
+    #open files
+    files = open("testDbpFDQO.csv","w")
+    files.write("kq\n")
+    #create callback
+    callbacks = CustomerTrainEpisodeLogger("DbpFDQO_5phut.csv")
+    callback2 = ModelIntervalCheckpoint("weight_DbpFDQO.h5f",interval=50000)
+    callback3 = TestLogger11(files)
+    model.compile(Adam(lr=1e-3), metrics=['mae']) 
+    
+
+    # #load weight and continue training
+    # fdqo = FDQO_method.DQNAgent(model=model, nb_actions=4, memory=memory, nb_steps_warmup=10,\
+    #            target_model_update=1e-3, policy=policy,gamma=0.9,memory_interval=1)
+    # fdqo.load_weights('weight_FDQO.h5f')
+    # #model.load_weights('weight_FDQO.h5f')
+    #fdqo.compile(Adam(lr=1e-3), metrics=['mae'])
+    
+    
+    model.compile(Adam(lr=1e-3), metrics=['mae'])
+    model.fit(env, nb_steps= 95162, visualize=False, verbose=2,callbacks=[callbacks,callback2])
+    files.close()
+
+def Run_SARSA():
+    model  = build_model(14,4)
+    num_actions = 4
+    
+    policy = EpsGreedyQPolicy(0.1)
+    env = BusEnv("Sarsa")
+    env.seed(123)
+    sarsa = SARSAAgent(model = model, nb_actions = num_actions,nb_steps_warmup = 10,
+                       policy = policy, gamma = 0.8)
+    files = open("testSarsa.csv", "w")
+    files.write("kq\n")
+    callbacks = CustomerTrainEpisodeLogger("Sarsa_5phut.csv")
+    callback2 = ModelIntervalCheckpoint("weight_Sarsa.h5f",interval=50000)
+    sarsa.compile(Adam(lr=1e-3), metrics=['mae'])
+    
+    sarsa.fit(env, nb_steps = 5000, visualize=False, verbose=2,callbacks=[callbacks,callback2])
+
+    
+
+    
 
 if __name__=="__main__":
     types = "FDQO"
@@ -166,4 +274,8 @@ if __name__=="__main__":
         Run_Fuzzy()
     elif types == "DQL":
         Run_DQL()
-    #create model FDQO
+    elif types == "DbFDQO":
+      Run_DbFDQO()
+    elif types == "DbpFDQO":
+      Run_DbpFDQO()
+    

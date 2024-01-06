@@ -47,7 +47,7 @@ class EpsGreedyQPolicy(Policy):
     - takes a random action with probability epsilon
     - takes current best action with prob (1 - epsilon)
     """
-    def __init__(self, eps=.1):
+    def __init__(self, eps):
         super(EpsGreedyQPolicy, self).__init__()
         self.eps = eps
 

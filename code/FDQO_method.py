@@ -1,15 +1,17 @@
 from __future__ import division
 import warnings
-
 import tensorflow.keras.backend as K
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Lambda, Input, Layer, Dense
 
 from rl.core import Agent
+
 from policy import EpsGreedyQPolicy
 from rl.util import *
 
 from fuzzy_controller import *
+from multiset import *
+from queue import Queue
 
 def mean_q(y_true, y_pred):
     return K.mean(K.max(y_pred, axis=-1))
@@ -98,19 +100,38 @@ class DQNAgent(AbstractDQNAgent):
     """
     def __init__(self, model, policy=None, test_policy=None, enable_double_dqn=False, enable_dueling_network=False,
                  dueling_type='avg', *args, **kwargs):
+        
         super(DQNAgent, self).__init__(*args, **kwargs)
 
         # Validate (important) input.
         if list(model.output.shape) != list((None, self.nb_actions)):
             raise ValueError('Model output "{}" has invalid shape. DQN expects a model that has one dimension for each action, in this case {}.'.format(model.output, self.nb_actions))
 
-        # Parameters.
-        self.files = open("kq.csv","w")
 
+        # Parameters.
+        #
+        self.files = open("kq.csv","w")
         self.fuzzy_logic = Fuzzy_Controller()
         self.enable_double_dqn = enable_double_dqn
         self.enable_dueling_network = enable_dueling_network
         self.dueling_type = dueling_type
+        self.average_reward = 0
+        self.t = 0
+        self.sumreward = 0
+        self.reward_capacity = 2000
+        
+        ## Hieu algo
+        self.reward_capacity_needed = 1750
+        self.multiset = Multiset()
+        ##
+        self.reward_queue = Queue(maxsize = self.reward_capacity)
+        self.epsilon = 0.12
+        self.k = 0.05
+        self.threshold = 0.85
+        # self.reward_queue2 = Queue(maxsize = 10000)
+        # self.sumreward2 = 0
+        # self.average_reward2 = 0
+        # self.t2 = 0
         if self.enable_dueling_network:
             # get the second last layer of the model, abandon the last layer
             layer = model.layers[-2]
@@ -242,21 +263,128 @@ class DQNAgent(AbstractDQNAgent):
         #self.n_tasks_in_node[action] = self.n_tasks_in_node[action]+1
         reward = max(0,min((2*observation[13]-time_delay)/observation[13],1))
         return reward
-    def forward(self, observation):
+    
+    
+    # FDQO forward
+    # def forward(self, observation):
+    #     # Select an action.
+    #     state = self.memory.get_recent_state(observation)
+    #     q_values = self.compute_q_values(state)
+    #     if self.training:
+    #         action = self.policy.select_action(q_values=q_values)
+    #         if self.estimate_reward(action,observation)>0.8:
+    #             action = action
+    #             self.files.write("0\n")
+    #             #print("A")
+    #         else:
+    #             action = self.fuzzy_logic.choose_action(observation)
+    #             self.files.write("1\n")
+    #     else:
+    #         action = self.test_policy.select_action(q_values=q_values)
+
+    #     # Book-keeping.
+    #     self.recent_observation = observation
+    #     self.recent_action = action
+
+    #     return action
+    
+    
+    # Db_FDQO forward
+    # def forward(self, observation, step = 0, baseline = 0.5, eps = 0.0, r = 0):
+    #     # Select an action.
+        
+    #     state = self.memory.get_recent_state(observation)
+    #     q_values = self.compute_q_values(state)            
+    #     if self.reward_capacity == 0:
+    #         self.sumreward += r
+    #         try:
+    #             self.average_reward = self.sumreward / self.t
+    #         except:
+    #             pass
+    #         self.t += 1
+    #     else:
+    #         #print(self.sumreward, self.reward_queue.qsize(), self.t)
+    #         if self.reward_queue.full():
+    #             self.sumreward -= self.reward_queue.get()
+    #         self.reward_queue.put(r)
+    #         self.sumreward += r
+    #         try:
+    #             self.average_reward = self.sumreward / self.t
+    #         except:
+    #             pass
+    #         if (self.t < self.reward_capacity):
+    #             self.t += 1
+        
+    #     if self.average_reward > baseline: # line 8-12
+    #         epsilon = min(self.epsilon - self.k * (self.average_reward - baseline), self.epsilon)
+    #         epsilon = max(epsilon, 0.01)
+    #         if np.random.uniform() < epsilon:
+    #             action = np.random.randint(0, 4)
+    #             ext = False
+    #         else:
+    #             ext = True
+    #             action = np.argmax(q_values)
+    #     else: # algo 2
+    #         action = self.policy.select_action(q_values=q_values)
+
+    #         if self.estimate_reward(action, observation) > self.threshold:
+    #             action = action
+    #             ext = True
+    #         else:
+    #             action = self.fuzzy_logic.choose_action(observation)
+    #             ext = False
+    #     if ext:
+    #         self.files.write("0\n")
+    #     else:
+    #         self.files.write("1\n")        
+    #     # Book-keeping.
+    #     self.recent_observation = observation
+    #     self.recent_action = action
+    #     return action
+    
+    
+    
+    # Hieu algo - DbpFDQO
+    def forward(self, observation, step = 0, baseline = 0.2, eps = 0.0, r = 0):
         # Select an action.
+        
         state = self.memory.get_recent_state(observation)
-        q_values = self.compute_q_values(state)
-        if self.training:
+        q_values = self.compute_q_values(state)            
+        
+        if self.reward_queue.full():
+            self.multiset.remove(self.reward_queue.get())
+        self.reward_queue.put(r)
+        self.multiset.insert(r)
+        try:
+            self.average_reward = self.multiset.sum_of_largest(self.t) / self.t
+        except:
+            pass
+        if (self.t < self.reward_capacity_needed):
+            self.t += 1
+        
+        if self.average_reward > baseline: # line 8-12
+            epsilon = min(self.epsilon - self.k * (self.average_reward - baseline), self.epsilon)
+            epsilon = max(epsilon, 0.01)
+            if np.random.uniform() < epsilon:
+                action = np.random.randint(0, 4)
+                ext = False
+            else:
+                ext = True
+                action = np.argmax(q_values)
+        else: # algo 2
             action = self.policy.select_action(q_values=q_values)
-            if self.estimate_reward(action,observation)>0.8:
+
+            if self.estimate_reward(action, observation) > self.threshold:
                 action = action
-                self.files.write("0\n")
-                #print("A")
+                ext = True
             else:
                 action = self.fuzzy_logic.choose_action(observation)
-                self.files.write("1\n")
+                ext = False
+
+        if ext:
+            self.files.write("0\n")
         else:
-            action = self.test_policy.select_action(q_values=q_values)
+            self.files.write("1\n")        
 
         # Book-keeping.
         self.recent_observation = observation

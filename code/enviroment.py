@@ -27,7 +27,7 @@ class BusEnv(gym.Env):
         data902 = data902[:, 13:15]
         self.data_bus = {"900":data900, "901":data901, "902":data902}
         #streaming data of task
-        if env != "DQL" and env != "FDQO": 
+        if env != "DQL" and env != "FDQO" and env != "DbFDQL" and env != "DbpFDQL" and env != "Sarsa" and env != "BDQL" and env != "DDQL":
             self.index_of_episode = 0
             self.data = pd.read_csv(os.path.join(DATA_TASK, "datatask{}.csv".format(self.index_of_episode)),header=None).to_numpy()
             self.data = np.sort(self.data, axis=0)
@@ -86,6 +86,46 @@ class BusEnv(gym.Env):
             self.configuration_result_file = open(os.path.join(RESULT_DIR, "thongso_dql.csv"),"w")
             self.node_computing = open("chiatask_dql.csv","w")
             self.node_computing.write("somay,distance,may0,may1,may2,may3,reward\n")
+            
+        elif env == "DbFDQL":
+            self.rewardfiles = open("DbFDQO_5phut_env.csv","w")
+            self.quality_result_file = open("n_quality_tasks_dbfdqo.csv","w")
+            self.configuration_result_file = open(os.path.join(RESULT_DIR, "thongso_dbfdqo.csv"),"w")
+            self.node_computing = open("chiatask_dbfdqo.csv","w")
+            self.node_computing.write("somay,distance,may0,may1,may2,may3,reward\n")
+        elif env == "DbpFDQL":
+            self.rewardfiles = open("DbpFDQO_5phut_env.csv","w")
+            self.quality_result_file = open("n_quality_tasks_dbpfdqo.csv","w")
+            self.configuration_result_file = open(os.path.join(RESULT_DIR, "thongso_dbpfdqo.csv"),"w")
+            self.node_computing = open("chiatask_dbpfdqo.csv","w")
+            self.node_computing.write("somay,distance,may0,may1,may2,may3,reward\n")
+        elif env == "DDQL":
+            self.rewardfiles = open("DDQL_5phut_env.csv","w")
+            self.quality_result_file = open("n_quality_tasks_ddql.csv","w")
+            self.configuration_result_file = open(os.path.join(RESULT_DIR, "thongso_ddql.csv"),"w")
+            self.node_computing = open("chiatask_ddql.csv","w")
+            self.node_computing.write("somay,distance,may0,may1,may2,may3,reward\n")
+        
+        elif env == "Sarsa":
+            self.rewardfiles = open("Sarsa_5phut_env.csv","w")
+            self.quality_result_file = open("n_quality_tasks_sarsa.csv","w")
+            self.configuration_result_file = open(os.path.join(RESULT_DIR, "thongso_sarsa.csv"),"w")
+            self.node_computing = open("chiatask_sarsa.csv","w")
+            self.node_computing.write("somay,distance,may0,may1,may2,may3,reward\n")
+        elif env == "RGreedy":
+            self.rewardfiles = open("FDQO_5phut_env.csv","w")
+            self.quality_result_file = open("n_quality_tasks_fdqo.csv","w")
+            self.configuration_result_file = open(os.path.join(RESULT_DIR, "thongso_fdqo.csv"),"w")
+            self.node_computing = open("chiatask_fdqo.csv","w")
+            self.node_computing.write("somay,distance,may0,may1,may2,may3,reward\n")
+        
+        elif env == "BDQL":
+            self.rewardfiles = open("FDQO_5phut_env.csv","w")
+            self.quality_result_file = open("n_quality_tasks_fdqo.csv","w")
+            self.configuration_result_file = open(os.path.join(RESULT_DIR, "thongso_fdqo.csv"),"w")
+            self.node_computing = open("chiatask_fdqo.csv","w")
+            self.node_computing.write("somay,distance,may0,may1,may2,may3,reward\n")
+            
         self.sumreward = 0
         self.nreward = 0
         self.configuration_result_file.write("server,bus1,bus2,bus3\n")
